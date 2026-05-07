@@ -143,7 +143,8 @@ export async function measureAllGrains(
 }
 
 export function calibrateMeasurements(
-  measurements: MeasurementResult[]
+  measurements: MeasurementResult[],
+  rulerPixelsPerMm?: number | null
 ): CalibrationResult {
   const successful = measurements.filter((m) => m.success && m.lengthPx > 0);
 
@@ -159,9 +160,13 @@ export function calibrateMeasurements(
     };
   }
 
-  // Find max lengthPx among successful measurements
-  const maxLengthPx = Math.max(...successful.map((m) => m.lengthPx));
-  const mmPerPx = 5.3 / maxLengthPx;
+  let mmPerPx: number;
+  if (rulerPixelsPerMm && rulerPixelsPerMm > 0) {
+    mmPerPx = 1 / rulerPixelsPerMm;
+  } else {
+    const maxLengthPx = Math.max(...successful.map((m) => m.lengthPx));
+    mmPerPx = 5.3 / maxLengthPx;
+  }
 
   const calibrated: CalibratedMeasurement[] = measurements.map((m) => ({
     ...m,

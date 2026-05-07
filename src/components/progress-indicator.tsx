@@ -21,21 +21,8 @@ function getStepStatus(
   currentStep: ProgressIndicatorProps["step"]
 ): "completed" | "active" | "pending" | "error" {
   if (currentStep === "error") {
-    const order: StepKey[] = ["uploading", "segmenting", "measuring", "done"];
-    const currentIdx = order.indexOf(stepKey);
-    // Mark earlier steps as completed based on which step errored
-    // We don't know exactly which step errored, but error replaces idle
-    // In practice the caller sets error after a failure at a specific step
     if (stepKey === "done") return "error";
-    // Steps before the error step are completed
-    const errorStepMap: Record<string, number> = {
-      uploading: 0,
-      segmenting: 1,
-      measuring: 2,
-      done: 3,
-    };
-    // Since we don't have the exact error step, mark none as completed
-    return currentIdx < 0 ? "pending" : "pending";
+    return "pending";
   }
 
   const order: StepKey[] = ["uploading", "segmenting", "measuring", "done"];
