@@ -239,7 +239,11 @@ function splitTouchingByRoundness(
   labels: Int32Array,
   w: number,
   h: number,
-): void {
+  pixelsPerMm: number | null,
+): number {
+  let splitCount = 0;
+  const maxLengthPx = pixelsPerMm ? 10 * pixelsPerMm : Infinity;
+
   const areas = new Map<number, number>();
   const perimeters = new Map<number, number>();
 
@@ -267,7 +271,7 @@ function splitTouchingByRoundness(
   }
 
   const areaValues = [...areas.values()].filter((a) => a > 100).sort((a, b) => a - b);
-  if (areaValues.length < 5) return;
+  if (areaValues.length < 5) return 0;
   const medianArea = areaValues[Math.floor(areaValues.length / 2)];
 
   const normalCircs: number[] = [];
@@ -276,7 +280,7 @@ function splitTouchingByRoundness(
       normalCircs.push(circularities.get(l) || 0);
     }
   }
-  if (normalCircs.length < 3) return;
+  if (normalCircs.length < 3) return 0;
   normalCircs.sort((a, b) => a - b);
   const medianCirc = normalCircs[Math.floor(normalCircs.length / 2)];
 
@@ -285,12 +289,13 @@ function splitTouchingByRoundness(
   nextLabel++;
 
   for (const [label, area] of areas) {
-    if (area < medianArea * 1.5) continue;
     const circ = circularities.get(label) || 0;
-    if (circ >= medianCirc * 0.85) continue;
+    const isOversized = area >= medianArea * 1.5;
+    const isIrregular = circ < medianCirc * 0.85;
 
     let minX = w, maxX = 0, minY = h, maxY = 0;
     let xSum = 0, ySum = 0, xxSum = 0, yySum = 0, xySum = 0;
+    let pixelCount = 0;
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         if (labels[y * w + x] === label) {
@@ -300,18 +305,34 @@ function splitTouchingByRoundness(
           if (y > maxY) maxY = y;
           xSum += x; ySum += y;
           xxSum += x * x; yySum += y * y; xySum += x * y;
+          pixelCount++;
         }
       }
     }
+    if (pixelCount < 100) continue;
 
-    const cx = xSum / area;
-    const cy = ySum / area;
-    const mxx = xxSum / area - cx * cx;
-    const myy = yySum / area - cy * cy;
-    const mxy = xySum / area - cx * cy;
+    const cx = xSum / pixelCount;
+    const cy = ySum / pixelCount;
+    const mxx = xxSum / pixelCount - cx * cx;
+    const myy = yySum / pixelCount - cy * cy;
+    const mxy = xySum / pixelCount - cx * cy;
     const angle = 0.5 * Math.atan2(2 * mxy, mxx - myy);
     const cos = Math.cos(angle);
     const sin = Math.sin(angle);
+
+    let majorMin = Infinity, majorMax = -Infinity;
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        if (labels[y * w + x] !== label) continue;
+        const major = (x - cx) * cos + (y - cy) * sin;
+        if (major < majorMin) majorMin = major;
+        if (major > majorMax) majorMax = major;
+      }
+    }
+    const majorLength = majorMax - majorMin;
+    const isTooLong = majorLength > maxLengthPx;
+
+    if (!(isOversized && isIrregular) && !isTooLong) continue;
 
     const projections = new Map<number, { min: number; max: number }>();
     for (let y = minY; y <= maxY; y++) {
@@ -351,6 +372,7 @@ function splitTouchingByRoundness(
     const maxWidth = Math.max(...smoothed);
     const startIdx = Math.floor(widthProfile.length * 0.1);
     const endIdx = Math.floor(widthProfile.length * 0.9);
+    const neckThreshold = isTooLong ? 0.75 : 0.6;
 
     let bestNeck = -1;
     let bestNeckWidth = Infinity;
@@ -358,7 +380,7 @@ function splitTouchingByRoundness(
       if (
         smoothed[i] < smoothed[i - 1] &&
         smoothed[i] < smoothed[i + 1] &&
-        smoothed[i] < maxWidth * 0.6 &&
+        smoothed[i] < maxWidth * neckThreshold &&
         smoothed[i] < bestNeckWidth
       ) {
         bestNeck = i;
@@ -380,7 +402,9 @@ function splitTouchingByRoundness(
         }
       }
     }
+    splitCount++;
   }
+  return splitCount;
 }
 
 function floodFill(
@@ -786,8 +810,11 @@ export async function segmentGrains(
     }
   }
 
-  // Split touching grains detected by abnormal roundness + neck finding
-  splitTouchingByRoundness(labels, width, height);
+  // Multi-pass splitting: repeat until no more splits or max 5 passes
+  for (let pass = 0; pass < 5; pass++) {
+    const splits = splitTouchingByRoundness(labels, width, height, pixelsPerMm);
+    if (splits === 0) break;
+  }
 
   // Extract regions with brightness, color, and moment data
   const regionMap = new Map<number, RegionData>();
