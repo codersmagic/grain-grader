@@ -46,18 +46,37 @@ export async function POST(request: Request) {
       );
     }
 
-    // Prepare grain paths
-    const grainPaths = sessionGrains.map((g) => ({
-      id: g.id,
-      path: g.cropImage,
-    }));
+    // Use pixel measurements from segmentation if available, otherwise fall back to Claude API
+    const hasSegmentMeasurements = sessionGrains.every((g) => g.lengthPx > 0);
 
-    // Measure all grains
-    const measurements = await measureAllGrains(grainPaths);
+    let measurements: Array<{
+      grainId: number;
+      lengthPx: number;
+      widthPx: number;
+      tailLengthPx: number;
+      success: boolean;
+    }>;
 
-    // Calibrate measurements
+    if (hasSegmentMeasurements) {
+      measurements = sessionGrains.map((g) => ({
+        grainId: g.id,
+        lengthPx: g.lengthPx,
+        widthPx: g.widthPx,
+        tailLengthPx: g.tailLengthPx,
+        success: true,
+      }));
+    } else {
+      const grainPaths = sessionGrains.map((g) => ({
+        id: g.id,
+        path: g.cropImage,
+      }));
+      measurements = await measureAllGrains(grainPaths);
+    }
+
+    // Calibrate using ruler-detected scale if available, otherwise fallback
+    const rulerPixelsPerMm = session.calibrationFactor;
     const { calibrationFactor, calibrated } =
-      calibrateMeasurements(measurements);
+      calibrateMeasurements(measurements, rulerPixelsPerMm);
 
     // Update each grain with measurements
     let measured = 0;

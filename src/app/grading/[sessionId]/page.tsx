@@ -26,6 +26,10 @@ export default function GradingPage() {
   const fetchSession = useCallback(async () => {
     try {
       const res = await fetch(`/api/sessions/${sessionId}`);
+      if (res.status === 401) {
+        router.push("/login");
+        return;
+      }
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "Failed to load session");
@@ -97,6 +101,22 @@ export default function GradingPage() {
     });
   }
 
+  async function handleDeleteGrain(id: number) {
+    try {
+      const res = await fetch(`/api/grains/${id}`, { method: "DELETE" });
+      if (res.status === 401) { router.push("/login"); return; }
+      if (!res.ok) return;
+      setGrains((prev) => prev.filter((g) => g.id !== id));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    } catch {
+      // silently ignore
+    }
+  }
+
   async function handleGradeNow() {
     setGrading(true);
     setError(null);
@@ -111,6 +131,10 @@ export default function GradingPage() {
         }),
       });
 
+      if (res.status === 401) {
+        router.push("/login");
+        return;
+      }
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "Grading failed");
@@ -242,12 +266,28 @@ export default function GradingPage() {
           </div>
         )}
 
+        {/* Annotated original image with bounding boxes */}
+        <details className="rounded-lg border border-zinc-800 bg-zinc-900/50">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-zinc-300 hover:text-zinc-100">
+            View detected grains on original image
+          </summary>
+          <div className="px-4 pb-4">
+            <img
+              src={`/api/static/data/grains/${sessionId}/annotated.png`}
+              alt="Original image with bounding boxes"
+              className="w-full rounded-lg"
+            />
+          </div>
+        </details>
+
         {/* Grain grid */}
         <GrainGrid
           grains={grains}
           selectedIds={selectedIds}
           onToggleGrain={handleToggleGrain}
+          onDeleteGrain={!isGraded ? handleDeleteGrain : undefined}
           selectable={!isGraded}
+          ranges={ranges}
         />
       </main>
     </div>

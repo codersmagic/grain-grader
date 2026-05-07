@@ -46,15 +46,21 @@ export async function POST(request: Request) {
           bboxY: grain.bbox.y,
           bboxWidth: grain.bbox.width,
           bboxHeight: grain.bbox.height,
+          lengthPx: grain.lengthPx,
+          widthPx: grain.widthPx,
+          tailLengthPx: grain.tailLengthPx,
         })
         .run();
     }
 
-    // Update session grain count and status
+    // Update session grain count, status, and ruler calibration if detected
     db.update(sessions)
       .set({
         grainCount: result.grains.length,
         status: "segmented",
+        ...(result.pixelsPerMm != null
+          ? { calibrationFactor: result.pixelsPerMm }
+          : {}),
       })
       .where(eq(sessions.id, sessionId))
       .run();
@@ -62,6 +68,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       grainCount: result.grains.length,
       hasOverlaps: result.hasOverlaps,
+      pixelsPerMm: result.pixelsPerMm,
     });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
