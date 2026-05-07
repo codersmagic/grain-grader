@@ -10,7 +10,6 @@ interface GrainGridProps {
   onDeleteGrain?: (id: number) => void;
   selectable: boolean;
   ranges: ReferenceRanges | null;
-  columns?: number;
 }
 
 export function GrainGrid({
@@ -20,40 +19,31 @@ export function GrainGrid({
   onDeleteGrain,
   selectable,
   ranges,
-  columns = 8,
 }: GrainGridProps) {
   return (
-    <div
-      className="grid gap-2"
-      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
-    >
-      {grains.map((grain, idx) => {
-        const col = idx % columns;
-        const isEvenCol = col % 2 === 0;
-
-        return (
-          <div
-            key={grain.id}
-            className={`rounded-lg ${isEvenCol ? "bg-zinc-900" : "bg-zinc-800/70"}`}
-          >
-            <GrainCard
-              grainNumber={grain.grainNumber}
-              cropImage={grain.cropImage}
-              isBroken={grain.isBroken}
-              isSelected={selectedIds.has(grain.id)}
-              grade={grain.grade}
-              score={grain.score}
-              lengthMm={grain.lengthMm}
-              widthMm={grain.widthMm}
-              tailLengthMm={grain.tailLengthMm}
-              ranges={ranges}
-              onToggle={() => onToggleGrain(grain.id)}
-              onDelete={onDeleteGrain ? () => onDeleteGrain(grain.id) : undefined}
-              selectable={selectable}
-            />
-          </div>
-        );
-      })}
+    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8">
+      {grains.map((grain, idx) => (
+        <div
+          key={grain.id}
+          className={`rounded-lg ${idx % 2 === 0 ? "bg-zinc-900" : "bg-zinc-800/70"}`}
+        >
+          <GrainCard
+            grainNumber={grain.grainNumber}
+            cropImage={grain.cropImage}
+            isBroken={grain.isBroken}
+            isSelected={selectedIds.has(grain.id)}
+            grade={grain.grade}
+            score={grain.score}
+            lengthMm={grain.lengthMm}
+            widthMm={grain.widthMm}
+            tailLengthMm={grain.tailLengthMm}
+            ranges={ranges}
+            onToggle={() => onToggleGrain(grain.id)}
+            onDelete={onDeleteGrain ? () => onDeleteGrain(grain.id) : undefined}
+            selectable={selectable}
+          />
+        </div>
+      ))}
     </div>
   );
 }
