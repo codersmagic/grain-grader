@@ -1,0 +1,25 @@
+# Probplem Description
+We want to develop a webapp for grading rice grains. Web needs to do the following
+
+User uploads a picture with rice grains on a a white or black background (Look at input.jpeg)  Once the image is uploaded, app has to use llm to segment each rice grain and show them in an order like sorted.jpeg. 
+In the sorted image, also show no of grains and show the following options. Each option is described bellow.
+
+1. Process button (this button is pressed after selecting 5-10 good grains)
+2. Grade button (This button is pressed when grains are to be graded in comparision to selected grains)
+
+Then on the sorted image, user is gonna click and select 5-6 grains as good grains. Give a user interface to select and unselect individual grains.
+
+Once grains are selected and process button is clicked, for all the selected grains in the sorted image, give the range of "length of the grain", "width of the grain" and "tail length of the grain". Refer stats.jpg for the definition of these length, width and tail of the grain.
+
+
+Once processed, enable grade button. When grade button is clicked, show the percentage of all grains matching the lengths, widhts and tail lengths with in the range of selected grains. Color them appropriately and also show other percentages.
+
+
+# Notes
+Use very modern and simplistic UI
+Try to match refer images
+
+
+
+
+# Test Cases
